@@ -1,0 +1,9 @@
+# Source and Destination Account and Calendar Names
+source_account: "Exchange"
+source_calendar: "Calendar"
+destination_account: "iCloud"
+destination_calendar: "Work"
+
+# Time window for fetching events
+time_back: 0  # Days to look back
+time_forward: 5  # Days to look forward
