@@ -19,6 +19,11 @@ DST_CAL = config.get("destination_calendar", "Work")
 TIME_BACK = config.get("time_back", 0)
 TIME_FRW = config.get("time_forward", 1)
 
+def create_event_key(event):
+    start_time = event.startDate().timeIntervalSince1970()
+    end_time = event.endDate().timeIntervalSince1970()
+    return (event.title(), start_time, end_time)
+
 def copy_calendar_events():
     store = EKEventStore.alloc().init()
 
@@ -74,22 +79,21 @@ def copy_calendar_events():
     source_events = store.eventsMatchingPredicate_(store.predicateForEventsWithStartDate_endDate_calendars_(start_date, end_date, [source_calendar]))
     destination_events = store.eventsMatchingPredicate_(store.predicateForEventsWithStartDate_endDate_calendars_(start_date, end_date, [destination_calendar]))
 
-    # Index destination events by title, start, and end date for quick lookup
-    destination_event_map = {(event.title(), event.startDate(), event.endDate()): event for event in destination_events}
+    # Index destination events by title, start, and end time for quick lookup
+    destination_event_map = {create_event_key(event): event for event in destination_events}
 
     # Copy or update events
     for source_event in source_events:
-        event_key = (source_event.title(), source_event.startDate(), source_event.endDate())
-        if event_key in destination_event_map:
-            dest_event = destination_event_map[event_key]
+        key = create_event_key(source_event)
+        if key in destination_event_map:
+            dest_event = destination_event_map[key]
             # If the event exists but has changed, update it
             if source_event.notes() != dest_event.notes() or source_event.location() != dest_event.location():
                 print(f"Updating event: {source_event.title()}")
                 dest_event.setNotes_(source_event.notes())
                 dest_event.setLocation_(source_event.location())
                 store.saveEvent_span_error_(dest_event, 0, None)
-            # Remove from map as it’s already processed
-            del destination_event_map[event_key]
+            del destination_event_map[key]
         else:
             # Create a new event in the destination calendar
             new_event = EKEvent.eventWithEventStore_(store)
@@ -99,6 +103,7 @@ def copy_calendar_events():
             new_event.setLocation_(source_event.location())
             new_event.setCalendar_(destination_calendar)
             new_event.setNotes_(source_event.notes())
+            store.saveEvent_span_error_(new_event, 0, None)
 
             success, error = store.saveEvent_span_error_(new_event, 0, None)
             if success:
